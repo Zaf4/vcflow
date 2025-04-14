@@ -243,7 +243,7 @@ def annotate_variants(vcf_file: str, ref: str, output: str) -> None:
 
 
 def filter_variants(vcf_file: str, output: str) -> None:
-    """Filter variants."""
+    """Filter variant Tranches."""
     output_path = Path(output)
 
     if Path(output).exists():
@@ -272,8 +272,10 @@ def hard_filter_variants(
     QUAL: float = 30.0,
 ) -> None:
     """
-    Filter variants manually.
+    Hard Filter variants.
 
+    from GATK documentation:
+    ----------------------
     QualByDepth (QD)
     FisherStrand (FS)
     StrandOddsRatio (SOR)
