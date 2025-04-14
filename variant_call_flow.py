@@ -128,11 +128,11 @@ def align_reads_paired_end(
 def postprocess_alignment(sam_file: str) -> None:
     """Post process the alignment."""
     sam_file_path = Path(sam_file)
-    bam_file_path = sam_file_path.with_suffix(".bam") # .bam
-    read_grouped_bam_file_path = bam_file_path.with_suffix(".rg.bam") # .rg.bam
-    sorted_bam_file_path = read_grouped_bam_file_path.with_suffix(".sorted.bam") # .rg.sorted.bam
-    stats_file_path = sorted_bam_file_path.with_suffix(".bam.stats") # .rg.sorted.bam.stats
-    index_file_path = sorted_bam_file_path.with_suffix(".bam.bai") # .rg.sorted.bam.bai
+    bam_file_path = sam_file_path.with_suffix(".bam")  # .bam
+    read_grouped_bam_file_path = bam_file_path.with_suffix(".rg.bam")  # .rg.bam
+    sorted_bam_file_path = read_grouped_bam_file_path.with_suffix(".sorted.bam")  # .rg.sorted.bam
+    stats_file_path = sorted_bam_file_path.with_suffix(".bam.stats")  # .rg.sorted.bam.stats
+    index_file_path = sorted_bam_file_path.with_suffix(".bam.bai")  # .rg.sorted.bam.bai
 
     # covert sam to bam
     if bam_file_path.exists():
@@ -205,10 +205,116 @@ def call_variants(bam_file: str, ref: str, regions_bed: str, output_vcf: str) ->
                 regions_bed,
                 "-O",
                 output_vcf,
+                "-ERC",
+                "GVCF",
             ]
         )
 
     return
+
+
+## ERROS out
+def annotate_variants(vcf_file: str, ref: str, output: str) -> None:
+    """
+    Score and annotate variants.
+
+    errom from GATK 4.6.1.0:
+    CNNScoreVariants is no longer included in GATK as of version 4.6.1.0.
+    Please use the replacement tool NVScoreVariants instead
+    """
+    if Path(output).exists():
+        print(f"{output} already exists, skipping scoring...")
+    else:
+        print(cyan(f"scoring  and annotating {vcf_file} with NVScoreVariants"))
+        run(
+            [
+                "gatk",
+                "NVScoreVariants",  # CNN removed in GATK 4.6.1.0
+                "-R",
+                ref,
+                "-V",
+                vcf_file,
+                "-O",
+                output,
+            ]
+        )
+
+    return
+
+
+def filter_variants(vcf_file: str, output: str) -> None:
+    """Filter variants."""
+    output_path = Path(output)
+
+    if Path(output).exists():
+        print(f"{output} already exists, skipping filtering...")
+    else:
+        print(cyan(f"filtering {vcf_file} with FilterVariantTranches"))
+        run(
+            [
+                "gatk",
+                "FilterVariantTranches",
+                "-V",
+                vcf_file,
+                "-O",
+                output,
+            ]
+        )
+
+
+def hard_filter_variants(
+    vcf_file: str,
+    ref: str,
+    *,
+    QD: float = 2.0,
+    FS: float = 60.0,
+    MQ: float = 40.0,
+    QUAL: float = 30.0,
+) -> None:
+    """
+    Filter variants manually.
+
+    QualByDepth (QD)
+    FisherStrand (FS)
+    StrandOddsRatio (SOR)
+    RMSMappingQuality (MQ)
+    MappingQualityRankSumTest (MQRankSum)
+    ReadPosRankSumTest (ReadPosRankSum)
+    """
+    output_path = Path(vcf_file).with_suffix(".filtered.vcf")
+
+    if output_path.exists():
+        print(f"{output_path} already exists, skipping filtering...")
+    else:
+        print(cyan(f"filtering {vcf_file} with VariantFiltration"))
+        run(
+            [
+                "gatk",
+                "VariantFiltration",
+                "-R",
+                ref,
+                "-V",
+                vcf_file,
+                "-O",
+                output_path,
+                "--filter-name",
+                "QD",
+                "--filter-expression",
+                f"QD < {QD}",
+                "--filter-name",
+                "FS",
+                "--filter-expression",
+                f"FS > {FS}",
+                "--filter-name",
+                "MQ",
+                "--filter-expression",
+                f"MQ < {MQ}",
+                "--filter-name",
+                "QUAL",
+                "--filter-expression",
+                f"QUAL < {QUAL}",
+            ]
+        )
 
 
 def main() -> None:
@@ -218,6 +324,7 @@ def main() -> None:
         url="https://hgdownload.soe.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz", gunzip=True
     )
     index_reference_genome(ref="ref/hg38.fa")
+    faidx(ref="ref/hg38.fa")
     align_reads_paired_end(
         read1="Task_Files/POOL-37_S182_L004_R1_001.fastq.gz",
         read2="Task_Files/POOL-37_S182_L004_R2_001.fastq.gz",
@@ -226,11 +333,22 @@ def main() -> None:
     )
     postprocess_alignment(sam_file="output/POOL-37.sam")
     call_variants(
-        bam_file="output/POOL-37.sorted.bam",
+        bam_file="output/POOL-37.rg.sorted.bam",
         ref="ref/hg38.fa",
         regions_bed="Task_Files/POOL-37.bed",
         output_vcf="output/POOL-37.vcf",
     )
+    # annotate_variants(
+    #    vcf_file="output/POOL-37.vcf",
+    #    ref="ref/hg38.fa",
+    #    output="output/POOL-37.annotated.vcf",
+    # )
+    # filter_variants(
+    #    vcf_file="output/POOL-37.annotated.vcf",
+    #    output="output/POOL-37.filtered.vcf",
+    # )
+    hard_filter_variants(vcf_file="output/POOL-37.vcf", ref="ref/hg38.fa")
+
     return
 
 
