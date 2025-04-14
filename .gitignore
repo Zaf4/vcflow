@@ -1,0 +1,9 @@
+
+# ref
+ref/
+.venv/
+
+from bash/
+output/
+Task_Files/
+*.zip
