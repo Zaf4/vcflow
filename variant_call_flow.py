@@ -16,6 +16,7 @@ TODO:
 """
 
 
+# color for colored output
 def red(text: str) -> str:
     """Return red text."""
     return f"\033[31m{text}\033[0m"
@@ -38,7 +39,7 @@ def unzip(file_name: str) -> None:
     return
 
 
-def get_reference_genome(url: str, gunzip: bool = True) -> None:
+def get_reference_genome(url: str, *, gunzip: bool = True) -> None:
     """Get the reference genome hg38 from UCSC."""
     ref_dir = Path("ref")
     ref_dir.mkdir(exist_ok=True)
@@ -150,7 +151,7 @@ def postprocess_alignment(sam_file: str) -> None:
                 "addreplacerg",
                 bam_file_path,
                 "-r",
-                "@RG\tID:sample1\tSM:sample1\tPL:ILLUMINA",  # customize these RG tags
+                "@RG\tID:sample1\tSM:sample1\tPL:ILLUMINA",
                 "-o",
                 read_grouped_bam_file_path,
             ]
@@ -242,6 +243,7 @@ def annotate_variants(vcf_file: str, ref: str, output: str) -> None:
     return
 
 
+# could not use due to annotation error
 def filter_variants(vcf_file: str, output: str) -> None:
     """Filter variant Tranches."""
     output_path = Path(output)
